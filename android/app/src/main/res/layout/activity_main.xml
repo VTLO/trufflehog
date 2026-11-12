@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="@string/app_name"
+            android:src="@mipmap/ic_launcher" />
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/app_name"
+            android:textColor="@color/accent"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnTerminal"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Terminal" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tabSources"
+            style="@style/Tab"
+            android:text="Sources" />
+
+        <TextView
+            android:id="@+id/tabRepos"
+            style="@style/Tab"
+            android:text="Online repos" />
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/formScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/Label"
+                android:text="Source / command" />
+
+            <Spinner
+                android:id="@+id/preset"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/presetHelp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#9E9E9E"
+                android:textSize="12sp" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Arguments (passed to trufflehog)" />
+
+            <EditText
+                android:id="@+id/args"
+                style="@style/Field"
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:minLines="2" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnPickFile"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="+ File" />
+
+                <Button
+                    android:id="@+id/btnPickDir"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="+ Folder" />
+
+                <Button
+                    android:id="@+id/btnStorage"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Storage access" />
+            </LinearLayout>
+
+            <CheckBox
+                android:id="@+id/optJson"
+                style="@style/Check"
+                android:text="JSON output (--json)" />
+
+            <CheckBox
+                android:id="@+id/optVerified"
+                style="@style/Check"
+                android:text="Verified results only (--results=verified)" />
+
+            <CheckBox
+                android:id="@+id/optNoVerify"
+                style="@style/Check"
+                android:text="Don't verify (--no-verification)" />
+
+            <CheckBox
+                android:id="@+id/optArchive"
+                style="@style/Check"
+                android:text="Skip archives/binaries (--force-skip-archives --force-skip-binaries)" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Environment variables (KEY=VALUE per line, e.g. GITHUB_TOKEN=...)" />
+
+            <EditText
+                android:id="@+id/env"
+                style="@style/Field"
+                android:inputType="textMultiLine|textNoSuggestions|textVisiblePassword"
+                android:minLines="1" />
+
+            <TextView
+                android:id="@+id/stdinLabel"
+                style="@style/Label"
+                android:text="Input text (sent to stdin, used by the stdin command)" />
+
+            <EditText
+                android:id="@+id/stdin"
+                style="@style/Field"
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:minLines="3" />
+        </LinearLayout>
+    </ScrollView>
+
+    <ScrollView
+        android:id="@+id/reposScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/repoGitWarning"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="⚠ This build has no bundled git binary. Rebuild with WITH_GIT=1 to scan online repositories."
+                android:textColor="#FF8A65"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Repository URLs (one per line)" />
+
+            <EditText
+                android:id="@+id/repoUrls"
+                style="@style/Field"
+                android:hint="https://github.com/owner/repo\nowner/repo\nhttps://github.com/my-org\nhttps://gitlab.com/group/project\nhttps://huggingface.co/user/model\nhttps://git.example.com/team/app.git"
+                android:inputType="textMultiLine|textNoSuggestions|textUri"
+                android:minLines="5" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnRepoPaste"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Paste" />
+
+                <Button
+                    android:id="@+id/btnRepoExample"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Example" />
+
+                <Button
+                    android:id="@+id/btnRepoClear"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Clear" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/repoPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/panel"
+                android:fontFamily="monospace"
+                android:padding="6dp"
+                android:textColor="#B0B0B0"
+                android:textSize="11sp" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Tokens (optional, needed for private repos and orgs)" />
+
+            <EditText
+                android:id="@+id/repoGithubToken"
+                style="@style/Field"
+                android:hint="GitHub token (GITHUB_TOKEN)"
+                android:inputType="textPassword" />
+
+            <EditText
+                android:id="@+id/repoGitlabToken"
+                style="@style/Field"
+                android:hint="GitLab token (GITLAB_TOKEN)"
+                android:inputType="textPassword" />
+
+            <EditText
+                android:id="@+id/repoHfToken"
+                style="@style/Field"
+                android:hint="Hugging Face token (HUGGINGFACE_TOKEN)"
+                android:inputType="textPassword" />
+
+            <TextView
+                style="@style/Label"
+                android:text="Options" />
+
+            <CheckBox
+                android:id="@+id/repoVerified"
+                style="@style/Check"
+                android:text="Verified results only" />
+
+            <CheckBox
+                android:id="@+id/repoJson"
+                style="@style/Check"
+                android:text="JSON output" />
+
+            <CheckBox
+                android:id="@+id/repoComments"
+                style="@style/Check"
+                android:text="GitHub: also scan issue and PR comments" />
+
+            <EditText
+                android:id="@+id/repoBranch"
+                style="@style/Field"
+                android:hint="Branch (git source; default: all)"
+                android:inputType="text|textNoSuggestions" />
+
+            <EditText
+                android:id="@+id/repoMaxDepth"
+                style="@style/Field"
+                android:hint="Max commit depth (git source; default: full history)"
+                android:inputType="number" />
+
+            <EditText
+                android:id="@+id/repoSince"
+                style="@style/Field"
+                android:hint="Since commit (git source)"
+                android:inputType="text|textNoSuggestions" />
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnRun"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:backgroundTint="@color/accent"
+            android:text="Run scan"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btnHelp"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Help" />
+
+        <Button
+            android:id="@+id/btnToggle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Output" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/outputPanel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="#9E9E9E"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnStop"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Stop" />
+
+            <Button
+                android:id="@+id/btnShare"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Share" />
+
+            <Button
+                android:id="@+id/btnSave"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Save" />
+        </LinearLayout>
+
+        <ScrollView
+            android:id="@+id/outScroll"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#000000"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/output"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textColor="#D0D0D0"
+                android:textIsSelectable="true"
+                android:textSize="11sp" />
+        </ScrollView>
+    </LinearLayout>
+</LinearLayout>

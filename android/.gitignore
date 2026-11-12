@@ -1,0 +1,13 @@
+.gradle/
+build/
+build-native/
+dist/
+local.properties
+app/src/main/jniLibs/
+*.apk
+*.keystore
+*.jks
+
+# The root .gitignore ignores anything named "trufflehog" (the CLI binary).
+!app/src/main/java/com/vtlo/trufflehog/
+!app/src/test/java/com/vtlo/trufflehog/
