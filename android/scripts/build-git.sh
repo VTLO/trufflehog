@@ -74,7 +74,7 @@ GIT_MAKE_FLAGS=(
   CC="$CC" AR="$AR" RANLIB="$RANLIB"
   uname_S=Linux uname_M="$GOARCH" uname_O=Android
   prefix=/usr
-  CFLAGS="-O2 -I$PREFIX/include"
+  CFLAGS="-O2 -I$PREFIX/include -include $ANDROID_DIR/scripts/android-compat.h"
   LDFLAGS="-L$PREFIX/lib"
   CURLDIR="$PREFIX"
   CURL_LDFLAGS="-L$PREFIX/lib -lcurl -lssl -lcrypto -lz"
@@ -83,7 +83,7 @@ GIT_MAKE_FLAGS=(
   OPENSSLDIR="$PREFIX"
   NO_GETTEXT=YesPlease NO_TCLTK=YesPlease NO_PERL=YesPlease NO_PYTHON=YesPlease
   NO_EXPAT=YesPlease NO_ICONV=YesPlease NO_REGEX=NeedsStartEnd
-  NO_INSTALL_HARDLINKS=YesPlease HAVE_DEV_TTY=YesPlease
+  NO_INSTALL_HARDLINKS=YesPlease HAVE_DEV_TTY=YesPlease HAVE_SYNC_FILE_RANGE= PTHREAD_LIBS= NEEDS_LIBRT=
 )
 (cd "$WORK/git-$GIT_VERSION" && make -j"$JOBS" "${GIT_MAKE_FLAGS[@]}" git git-remote-http) > "$WORK/git.log" 2>&1 \
   || { tail -40 "$WORK/git.log"; exit 1; }

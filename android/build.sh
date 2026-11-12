@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Builds the VTLOs3c standalone APK (trufflehog for Android).
 #
-#   ./build.sh                     # arm64-v8a + x86_64, without git
+#   ./build.sh                     # arm64-v8a + x86_64, with a bundled git
 #   ABIS="arm64-v8a" ./build.sh    # only phones
-#   WITH_GIT=1 ./build.sh          # also cross-compile git (enables git/github/gitlab/huggingface sources)
+#   WITH_GIT=0 ./build.sh          # skip git (disables git/github/gitlab/huggingface sources and the Online repos tab)
 #
 # Requirements: Go (version from ../go.mod), JDK 17+, Gradle 8.9+, Android SDK
 # with platforms;android-34, build-tools;34.0.0 and an NDK (r26+).
@@ -14,7 +14,7 @@ source scripts/env.sh
 ABIS="${ABIS:-arm64-v8a x86_64}"
 for abi in $ABIS; do
   scripts/build-trufflehog.sh "$abi"
-  if [ "${WITH_GIT:-0}" = "1" ]; then
+  if [ "${WITH_GIT:-1}" = "1" ]; then
     scripts/build-git.sh "$abi"
   fi
 done

@@ -8,10 +8,11 @@ repository. It needs no root and no Termux.
 | Component | Purpose |
 |-----------|---------|
 | `libtrufflehog.so` | The trufflehog CLI cross-compiled for Android with cgo. Every detector, verifier, source and analyzer from this repo is included. |
-| **Scan** screen | A form with presets for every command: `filesystem`, `git`, `github`, `github-experimental`, `gitlab`, `huggingface`, `s3`, `gcs`, `docker`, `postman`, `jenkins`, `elasticsearch`, `circleci`, `travisci`, `syslog`, `stdin`, `multi-scan`, `json-enumerator` and `custom`. It also has toggles for the global flags, a box for env vars (tokens), a stdin box, file and folder import, and live output you can share or save. Scans keep running in a foreground service. |
+| **Online repos** tab | Paste repository URLs, one per line, and scan them with full git history. It accepts GitHub repos, users and orgs (or the `owner/repo` shorthand), GitLab, Bitbucket, Codeberg and Hugging Face URLs, plus any `https://`, `ssh://` or `git@` git URL. A live preview shows the trufflehog command for each line. Optional GitHub/GitLab/Hugging Face tokens unlock private repos; tokens are kept in memory only and never saved. Other options: verified-only, JSON, GitHub issue/PR comments, branch, max depth and since-commit. You can also share a repo link from your browser to VTLOs3c. |
+| **Sources** tab | A form with presets for every command: `filesystem`, `git`, `github`, `github-experimental`, `gitlab`, `huggingface`, `s3`, `gcs`, `docker`, `postman`, `jenkins`, `elasticsearch`, `circleci`, `travisci`, `syslog`, `stdin`, `multi-scan`, `json-enumerator` and `custom`. It also has toggles for the global flags, a box for env vars (tokens), a stdin box, file and folder import, and live output you can share or save. Scans keep running in a foreground service. |
 | **Terminal** screen | A real PTY terminal emulator ([Termux terminal-view](https://github.com/termux/termux-app), Apache-2.0). It runs trufflehog's interactive TUI: the wizard you get with no arguments, and `analyze` for API-key permission analysis. After the command exits you get a shell (`/system/bin/sh`) with `trufflehog` on `PATH`. |
 | Share target | Share any text to VTLOs3c from another app and it is scanned with `trufflehog stdin`. |
-| `libgit.so` (optional) | Bundled `git` + `git-remote-https`. trufflehog shells out to `git` for the `git`, `github`, `gitlab` and `huggingface` sources, and Android has no git. Build it with `WITH_GIT=1`. |
+| `libgit.so` | Bundled `git` + `git-remote-https` (git 2.47 with static curl, OpenSSL and zlib). trufflehog runs the `git` program for the `git`, `github`, `gitlab` and `huggingface` sources, and Android has no git. `WITH_GIT=0` skips it. |
 
 The CA bundle is generated at startup from the device trust store, including
 user-installed CAs. DNS and TLS go through Android's bionic libc. A
@@ -29,8 +30,8 @@ Requirements:
 
 ```sh
 export ANDROID_HOME=/path/to/android-sdk
-./build.sh                    # arm64-v8a + x86_64
-WITH_GIT=1 ./build.sh         # also build git/curl/openssl/zlib from source (git-based sources)
+./build.sh                    # arm64-v8a + x86_64, git included
+WITH_GIT=0 ./build.sh         # without git (no git/github/gitlab/huggingface sources, no Online repos tab)
 ABIS=arm64-v8a ./build.sh     # phones only (smaller APK)
 ```
 
@@ -43,6 +44,12 @@ to Gradle.
 compile for 32-bit targets.
 
 ## Usage tips
+
+* **Online repos:** how each URL is scanned.
+  * GitHub repos use the `git` source (full history, no API calls). With a GitHub token, or with "issue and PR comments" checked, they use the `github` source instead.
+  * `https://github.com/<name>` scans all repos of that user or org.
+  * GitLab repos use the `gitlab` source when a GitLab token is set.
+  * Several URLs run one after another, and their output is combined.
 
 * **Scanning `/sdcard`:** tap *Storage access* and grant "All files access".
   Without it, *+ File* / *+ Folder* copies the picked items into app storage and

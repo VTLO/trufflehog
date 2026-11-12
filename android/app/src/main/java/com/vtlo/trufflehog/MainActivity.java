@@ -3,6 +3,8 @@ package com.vtlo.trufflehog;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -15,6 +17,8 @@ import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.provider.Settings;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -33,6 +37,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +46,9 @@ public class MainActivity extends Activity implements ScanRunner.Listener {
     private static final int REQ_DIR = 2;
     private static final int REQ_SAVE = 3;
     private static final int MAX_VIEW_CHARS = 200_000;
+    private static final int TAB_SOURCES = 0;
+    private static final int TAB_REPOS = 1;
+    private static final String EXAMPLE_REPO = "https://github.com/trufflesecurity/test_keys";
 
     private Spinner preset;
     private TextView presetHelp, output, status;
@@ -51,6 +59,13 @@ public class MainActivity extends Activity implements ScanRunner.Listener {
     private Button btnRun, btnStop;
     private SharedPreferences prefs;
     private boolean ignorePresetSelection = true;
+
+    // "Online repos" tab. Tokens are deliberately not persisted to disk.
+    private TextView tabSources, tabRepos, repoPreview;
+    private View reposScroll;
+    private EditText repoUrls, repoGithubToken, repoGitlabToken, repoHfToken, repoBranch, repoMaxDepth, repoSince;
+    private CheckBox repoVerified, repoJson, repoComments;
+    private int activeTab = TAB_SOURCES;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,7 +108,7 @@ public class MainActivity extends Activity implements ScanRunner.Listener {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Presets.Preset p = Presets.ALL[position];
                 presetHelp.setText(p.help + (p.needsGit && !NativeEnv.hasGit(MainActivity.this)
-                        ? "\n⚠ This build has no bundled git binary; this source will not work." : ""));
+                        ? "\n⚠ This build has no bundled git binary (rebuild with WITH_GIT=1); this source will not work." : ""));
                 if (ignorePresetSelection) {
                     ignorePresetSelection = false;
                     return;
@@ -115,6 +130,9 @@ public class MainActivity extends Activity implements ScanRunner.Listener {
         findViewById(R.id.btnPickDir).setOnClickListener(v -> pickDir());
         findViewById(R.id.btnStorage).setOnClickListener(v -> requestStorage());
         findViewById(R.id.btnTerminal).setOnClickListener(v -> openTerminal(null));
+
+        setupReposTab();
+        selectTab(prefs.getInt("tab", TAB_SOURCES));
 
         new Thread(() -> {
             try {
@@ -141,6 +159,13 @@ public class MainActivity extends Activity implements ScanRunner.Listener {
         if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return;
         String text = intent.getStringExtra(Intent.EXTRA_TEXT);
         if (text == null) return;
+        // Shared repository links go to the "Online repos" tab.
+        if (text.trim().matches("(?s)(https?://|git@|ssh://)\\S+(\\s+(https?://|git@|ssh://)\\S+)*")) {
+            String cur = repoUrls.getText().toString().trim();
+            repoUrls.setText(cur.isEmpty() ? text.trim() : cur + "\n" + text.trim());
+            selectTab(TAB_REPOS);
+            return;
+        }
         for (int i = 0; i < Presets.ALL.length; i++) {
             if (Presets.ALL[i].args.equals("stdin")) {
                 preset.setSelection(i);
@@ -178,7 +203,180 @@ public class MainActivity extends Activity implements ScanRunner.Listener {
                 .putBoolean("verified", optVerified.isChecked())
                 .putBoolean("noverify", optNoVerify.isChecked())
                 .putBoolean("archive", optArchive.isChecked())
+                .putInt("tab", activeTab)
+                .putString("repoUrls", repoUrls.getText().toString())
+                .putBoolean("repoVerified", repoVerified.isChecked())
+                .putBoolean("repoJson", repoJson.isChecked())
+                .putBoolean("repoComments", repoComments.isChecked())
+                .putString("repoBranch", repoBranch.getText().toString())
+                .putString("repoMaxDepth", repoMaxDepth.getText().toString())
+                .putString("repoSince", repoSince.getText().toString())
                 .apply();
+    }
+
+    // ---- "Online repos" tab --------------------------------------------
+
+    private void setupReposTab() {
+        tabSources = findViewById(R.id.tabSources);
+        tabRepos = findViewById(R.id.tabRepos);
+        reposScroll = findViewById(R.id.reposScroll);
+        repoPreview = findViewById(R.id.repoPreview);
+        repoUrls = findViewById(R.id.repoUrls);
+        repoGithubToken = findViewById(R.id.repoGithubToken);
+        repoGitlabToken = findViewById(R.id.repoGitlabToken);
+        repoHfToken = findViewById(R.id.repoHfToken);
+        repoBranch = findViewById(R.id.repoBranch);
+        repoMaxDepth = findViewById(R.id.repoMaxDepth);
+        repoSince = findViewById(R.id.repoSince);
+        repoVerified = findViewById(R.id.repoVerified);
+        repoJson = findViewById(R.id.repoJson);
+        repoComments = findViewById(R.id.repoComments);
+
+        repoUrls.setText(prefs.getString("repoUrls", ""));
+        repoVerified.setChecked(prefs.getBoolean("repoVerified", false));
+        repoJson.setChecked(prefs.getBoolean("repoJson", false));
+        repoComments.setChecked(prefs.getBoolean("repoComments", false));
+        repoBranch.setText(prefs.getString("repoBranch", ""));
+        repoMaxDepth.setText(prefs.getString("repoMaxDepth", ""));
+        repoSince.setText(prefs.getString("repoSince", ""));
+        findViewById(R.id.repoGitWarning).setVisibility(NativeEnv.hasGit(this) ? View.GONE : View.VISIBLE);
+
+        tabSources.setOnClickListener(v -> selectTab(TAB_SOURCES));
+        tabRepos.setOnClickListener(v -> selectTab(TAB_REPOS));
+        findViewById(R.id.btnRepoPaste).setOnClickListener(v -> pasteRepoUrls());
+        findViewById(R.id.btnRepoExample).setOnClickListener(v -> appendRepoUrl(EXAMPLE_REPO));
+        findViewById(R.id.btnRepoClear).setOnClickListener(v -> repoUrls.setText(""));
+
+        TextWatcher watcher = new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable e) {
+                updateRepoPreview();
+            }
+        };
+        for (EditText e : new EditText[]{repoUrls, repoGithubToken, repoGitlabToken, repoBranch, repoMaxDepth, repoSince}) {
+            e.addTextChangedListener(watcher);
+        }
+        repoComments.setOnCheckedChangeListener((b, c) -> updateRepoPreview());
+        updateRepoPreview();
+    }
+
+    private void selectTab(int tab) {
+        activeTab = tab;
+        tabSources.setTextColor(tab == TAB_SOURCES ? getColor(R.color.accent) : getColor(R.color.text));
+        tabRepos.setTextColor(tab == TAB_REPOS ? getColor(R.color.accent) : getColor(R.color.text));
+        tabSources.setBackgroundColor(tab == TAB_SOURCES ? getColor(R.color.panel) : 0);
+        tabRepos.setBackgroundColor(tab == TAB_REPOS ? getColor(R.color.panel) : 0);
+        btnRun.setText(tab == TAB_REPOS ? "Scan repos" : "Run scan");
+        showOutput(false);
+    }
+
+    private RepoTargets.Options repoOptions() {
+        RepoTargets.Options o = new RepoTargets.Options();
+        o.hasGithubToken = !repoGithubToken.getText().toString().trim().isEmpty();
+        o.hasGitlabToken = !repoGitlabToken.getText().toString().trim().isEmpty();
+        o.comments = repoComments.isChecked();
+        o.branch = repoBranch.getText().toString().trim();
+        o.maxDepth = repoMaxDepth.getText().toString().trim();
+        o.sinceCommit = repoSince.getText().toString().trim();
+        return o;
+    }
+
+    private void updateRepoPreview() {
+        List<RepoTargets.Target> targets = RepoTargets.parse(repoUrls.getText().toString(), repoOptions());
+        if (targets.isEmpty()) {
+            repoPreview.setText("Enter one repository URL per line. Supported: GitHub repos, users and orgs "
+                    + "(or owner/repo shorthand), GitLab, Bitbucket, Hugging Face, and any https://, ssh:// "
+                    + "or git@ git URL.");
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (RepoTargets.Target t : targets) {
+            if (sb.length() > 0) sb.append('\n');
+            sb.append(RepoTargets.describe(t));
+        }
+        repoPreview.setText(sb);
+    }
+
+    private void pasteRepoUrls() {
+        ClipboardManager cm = getSystemService(ClipboardManager.class);
+        ClipData clip = cm.getPrimaryClip();
+        if (clip == null || clip.getItemCount() == 0) return;
+        CharSequence text = clip.getItemAt(0).coerceToText(this);
+        if (text != null) appendRepoUrl(text.toString().trim());
+    }
+
+    private void appendRepoUrl(String url) {
+        String cur = repoUrls.getText().toString().trim();
+        repoUrls.setText(cur.isEmpty() ? url : cur + "\n" + url);
+        repoUrls.setSelection(repoUrls.getText().length());
+    }
+
+    private void runRepos(boolean help) {
+        saveForm();
+        List<RepoTargets.Target> targets = RepoTargets.parse(repoUrls.getText().toString(), repoOptions());
+        if (help) {
+            List<List<String>> cmds = new ArrayList<>();
+            List<String> h = new ArrayList<>();
+            h.add(targets.isEmpty() || targets.get(0).args == null ? "git" : targets.get(0).args.get(0));
+            h.add("--help");
+            cmds.add(h);
+            startScans(cmds, null);
+            return;
+        }
+        if (targets.isEmpty()) {
+            Toast.makeText(this, "Enter at least one repository URL", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        List<List<String>> cmds = new ArrayList<>();
+        for (RepoTargets.Target t : targets) {
+            if (t.error != null) {
+                new AlertDialog.Builder(this).setTitle("Invalid URL")
+                        .setMessage(t.input + "\n\n" + t.error).setPositiveButton("OK", null).show();
+                return;
+            }
+            List<String> a = new ArrayList<>(t.args);
+            a.add("--no-update");
+            if (repoVerified.isChecked()) a.add("--results=verified");
+            if (repoJson.isChecked()) a.add("--json");
+            cmds.add(a);
+        }
+        if (RepoTargets.needsGit(targets) && !NativeEnv.hasGit(this)) {
+            new AlertDialog.Builder(this).setTitle("git is not bundled")
+                    .setMessage("Scanning git repositories needs the git binary, which this build doesn't include. "
+                            + "Rebuild the APK with WITH_GIT=1.")
+                    .setPositiveButton("OK", null).show();
+            return;
+        }
+        Map<String, String> e = new LinkedHashMap<>(ArgParser.parseEnv(env.getText().toString()));
+        putIfSet(e, "GITHUB_TOKEN", repoGithubToken);
+        putIfSet(e, "GITLAB_TOKEN", repoGitlabToken);
+        putIfSet(e, "HUGGINGFACE_TOKEN", repoHfToken);
+        startScans(cmds, e);
+    }
+
+    private static void putIfSet(Map<String, String> env, String key, EditText field) {
+        String v = field.getText().toString().trim();
+        if (!v.isEmpty()) env.put(key, v);
+    }
+
+    private void startScans(List<List<String>> cmds, Map<String, String> e) {
+        if (ScanRunner.get().isRunning()) {
+            Toast.makeText(this, "A scan is already running", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        output.setText("");
+        showOutput(true);
+        try {
+            ScanRunner.get().startQueue(this, cmds, e, null);
+        } catch (Exception ex) {
+            output.append("Failed to start trufflehog: " + ex.getMessage() + "\n");
+        }
     }
 
     private List<String> buildArgs(boolean help) {
@@ -201,6 +399,10 @@ public class MainActivity extends Activity implements ScanRunner.Listener {
     }
 
     private void run(boolean help) {
+        if (activeTab == TAB_REPOS) {
+            runRepos(help);
+            return;
+        }
         saveForm();
         List<String> a = buildArgs(help);
         Map<String, String> e = ArgParser.parseEnv(env.getText().toString());
@@ -241,7 +443,8 @@ public class MainActivity extends Activity implements ScanRunner.Listener {
 
     private void showOutput(boolean show) {
         outputPanel.setVisibility(show ? View.VISIBLE : View.GONE);
-        formScroll.setVisibility(show ? View.GONE : View.VISIBLE);
+        formScroll.setVisibility(!show && activeTab == TAB_SOURCES ? View.VISIBLE : View.GONE);
+        reposScroll.setVisibility(!show && activeTab == TAB_REPOS ? View.VISIBLE : View.GONE);
         ((Button) findViewById(R.id.btnToggle)).setText(show ? "Form" : "Output");
     }
 
